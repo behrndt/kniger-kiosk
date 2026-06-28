@@ -1,0 +1,14 @@
+[Unit]
+Description=KNIGER Kiosk Remote-Update via Git (Einmalig)
+Documentation=https://github.com/behrndt/kniger-kiosk
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/opt/kiosk/scripts/kiosk-update.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kiosk-update
+# Kein Restart — Timer übernimmt die Wiederholung

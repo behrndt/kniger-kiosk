@@ -1,0 +1,14 @@
+# Niemals echte Secrets committen
+/kiosk.env
+*.env
+!kiosk.env.example
+
+# Python
+*.pyc
+__pycache__/
+
+# macOS
+.DS_Store
+
+# Temporäre Laufzeit-Dateien
+/run/

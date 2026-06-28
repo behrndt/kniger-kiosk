@@ -1,0 +1,14 @@
+[Unit]
+Description=KNIGER Kiosk HDMI-CEC TV-Steuerung Timer (jede Minute)
+Documentation=https://github.com/behrndt/kniger-kiosk
+
+[Timer]
+# 1 Minute nach Boot starten (nach erstem Sync)
+OnBootSec=1min
+# Dann jede Minute prüfen
+OnCalendar=*:0/1
+Unit=kiosk-cec-check.service
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

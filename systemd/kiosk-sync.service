@@ -1,0 +1,16 @@
+[Unit]
+Description=KNIGER Kiosk Schedule-Sync (Einmalig)
+Documentation=https://github.com/behrndt/kniger-kiosk
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+Group=pi
+ExecStart=/opt/kiosk/scripts/sync-schedule.sh
+EnvironmentFile=/etc/kiosk/kiosk.env
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kiosk-sync
+# Kein Restart — Timer übernimmt die Wiederholung

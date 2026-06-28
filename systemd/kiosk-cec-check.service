@@ -1,0 +1,14 @@
+[Unit]
+Description=KNIGER Kiosk HDMI-CEC TV-Steuerung (Einmalig)
+Documentation=https://github.com/behrndt/kniger-kiosk
+After=kiosk-sync.service
+
+[Service]
+Type=oneshot
+User=pi
+Group=pi
+SupplementaryGroups=video
+ExecStart=/opt/kiosk/scripts/cec-tv-check.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kiosk-cec

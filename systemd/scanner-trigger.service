@@ -1,0 +1,21 @@
+[Unit]
+Description=KNIGER Kiosk Scanner-Trigger-Daemon
+Documentation=https://github.com/behrndt/kniger-kiosk
+After=network.target
+# Scanner darf kurz nach Boot starten — kein Netz nötig
+
+[Service]
+User=pi
+Group=pi
+SupplementaryGroups=gpio input video
+WorkingDirectory=/opt/kiosk
+ExecStart=/usr/bin/python3 /opt/kiosk/scanner-trigger.py
+EnvironmentFile=/etc/kiosk/kiosk.env
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=scanner-trigger
+
+[Install]
+WantedBy=multi-user.target

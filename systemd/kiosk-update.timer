@@ -1,0 +1,14 @@
+[Unit]
+Description=KNIGER Kiosk Remote-Update Timer (stündlich)
+Documentation=https://github.com/behrndt/kniger-kiosk
+
+[Timer]
+# Erster Check 2 Minuten nach Boot (Netz etabliert)
+OnBootSec=2min
+# Dann stündlich
+OnUnitActiveSec=1h
+Unit=kiosk-update.service
+AccuracySec=5min
+
+[Install]
+WantedBy=timers.target

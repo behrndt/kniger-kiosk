@@ -1,0 +1,15 @@
+[Unit]
+Description=KNIGER Kiosk Schedule-Sync Timer (alle 5 Minuten)
+Documentation=https://github.com/behrndt/kniger-kiosk
+
+[Timer]
+# Beim Start nach 30s (Netz abwarten)
+OnBootSec=30s
+# Dann alle 5 Minuten wiederholen
+OnUnitActiveSec=5min
+Unit=kiosk-sync.service
+# Einmaligen Drift erlauben um Netz-Lastspitzen zu vermeiden
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target
