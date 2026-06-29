@@ -66,7 +66,8 @@ sudo raspi-config
 Empfohlene Einstellungen:
 - **System → Boot / Auto Login**: `Desktop Autologin` (als pi)
 - **Localisation → Timezone**: `Europe/Berlin`
-- **Advanced → GL Driver**: `G2 — GL (Fake KMS)` (für Chromium-Kiosk)
+
+> **Hinweis:** Der GL-Treiber-Menüpunkt (`Advanced → GL Driver`) existiert in Pi OS 6.x (Bookworm) nicht mehr — Fake KMS ist dort automatisch der Standard, kein manueller Schritt nötig.
 
 ---
 
