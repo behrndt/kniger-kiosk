@@ -70,6 +70,24 @@ Empfohlene Einstellungen:
 
 ---
 
+## Schritt 2b — USB-SSD: UAS-Quirk vorab setzen (Intenso 3823430)
+
+Die Intenso Premium 3823430 nutzt einen JMicron-JMS579-Controller (`VID_152D:PID_0579`) mit UAS-Modus, der beim Pi 4 zum Hängenbleiben in der initramfs-Shell führt. **Vor dem ersten Boot** in `cmdline.txt` auf der `bootfs`-Partition eintragen (alles in einer Zeile, kein Enter!):
+
+```
+ usb-storage.quirks=152d:0579:u
+```
+
+`install.sh` macht das automatisch, falls die SSD bereits eingebaut ist. Beim allerersten Boot muss es jedoch manuell gesetzt sein, da der Installer erst danach läuft.
+
+**Andere SSD-Modelle:** VID:PID per PowerShell (Windows) ermitteln:
+```powershell
+Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match 'USB\\VID' } | Select-Object FriendlyName, InstanceId
+```
+Zeile `Per USB angeschlossenes SCSI (UAS)-Massenspeichergerät` → `VID_XXXX&PID_YYYY` → `usb-storage.quirks=xxxx:yyyy:u`
+
+---
+
 ## Schritt 3 — Installer ausführen
 
 ```bash

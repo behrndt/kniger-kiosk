@@ -104,6 +104,22 @@ chmod +x "$KIOSK_DIR/scripts/"*.sh
 chmod +x "$KIOSK_DIR/scanner-trigger.py"
 chmod +x "$KIOSK_DIR/install.sh"
 
+# ── USB-SSD UAS-Quirk in cmdline.txt setzen ──────────────────────────────────
+# Intenso Premium 3823430 (JMicron JMS579, VID_152D:PID_0579) hat UAS-Probleme
+# mit dem Pi 4 — ohne diesen Eintrag bleibt der Pi in der initramfs-Shell hängen.
+CMDLINE=/boot/firmware/cmdline.txt
+UAS_QUIRK="usb-storage.quirks=152d:0579:u"
+if [ -f "$CMDLINE" ]; then
+    if grep -q "$UAS_QUIRK" "$CMDLINE"; then
+        info "UAS-Quirk bereits in $CMDLINE vorhanden"
+    else
+        info "UAS-Quirk in $CMDLINE eintragen…"
+        sed -i "s|$| $UAS_QUIRK|" "$CMDLINE"
+    fi
+else
+    warn "$CMDLINE nicht gefunden — UAS-Quirk bitte manuell eintragen"
+fi
+
 # ── Systemd-Units installieren ────────────────────────────────────────────────
 info "Systemd-Units installieren…"
 cp "$KIOSK_DIR/systemd/"*.service /etc/systemd/system/
