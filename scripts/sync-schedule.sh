@@ -85,14 +85,14 @@ mkdir -p /run/kiosk
 TMP=$(mktemp /run/kiosk/schedule.env.XXXXXX)
 cat > "$TMP" <<EOF
 # Automatisch generiert von sync-schedule.sh — nicht manuell bearbeiten
-KIOSK_URL=${KIOSK_URL}
-CHECKIN_URL=${CHECKIN_URL}
-TV_ON_TIME=${TV_ON_TIME}
-TV_OFF_TIME=${TV_OFF_TIME}
+KIOSK_URL="${KIOSK_URL}"
+CHECKIN_URL="${CHECKIN_URL}"
+TV_ON_TIME="${TV_ON_TIME}"
+TV_OFF_TIME="${TV_OFF_TIME}"
 TV_ON_DAYS="${TV_ON_DAYS}"
-TIMEZONE=${TIMEZONE}
-SCREEN_KEY=${SCREEN_KEY}
-UPDATED_AT=$(date -Iseconds)
+TIMEZONE="${TIMEZONE}"
+SCREEN_KEY="${SCREEN_KEY}"
+UPDATED_AT="$(date -Iseconds)"
 EOF
 mv "$TMP" "$SCHEDULE_ENV"
 chmod 644 "$SCHEDULE_ENV"
