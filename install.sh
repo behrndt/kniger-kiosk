@@ -211,10 +211,25 @@ WALLPAPER_DST=/usr/share/rpd-wallpaper/kniger-kiosk.png
 if command -v rsvg-convert &>/dev/null && [ -f "$KIOSK_DIR/loading.html" ]; then
     : # rsvg-convert nicht direkt nutzbar für HTML — Fallback
 fi
-# Wallpaper-PNG direkt aus dem Repo nehmen (falls vorhanden), sonst überspringen
+# Wallpaper: PNG aus Repo nehmen (falls vorhanden) oder solides KNIGER-Schwarz generieren
 if [ -f "$WALLPAPER_SRC" ]; then
     cp "$WALLPAPER_SRC" "$WALLPAPER_DST"
     info "Wallpaper kopiert: $WALLPAPER_DST"
+else
+    # Kein Wallpaper im Repo — erzeuge solides #0a0a0a PNG (matches Kiosk-Hintergrund)
+    python3 -c "
+import struct, zlib
+def png_solid(w,h,r,g,b):
+    def chunk(t,d):
+        c=zlib.crc32(t+d)&0xffffffff
+        return struct.pack('>I',len(d))+t+d+struct.pack('>I',c)
+    raw=b'\\x00'+bytes([r,g,b])*w
+    idat=zlib.compress(raw*h,9)
+    return b'\\x89PNG\\r\\n\\x1a\\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+chunk(b'IDAT',idat)+chunk(b'IEND',b'')
+open('$WALLPAPER_DST','wb').write(png_solid(1920,1080,10,10,10))
+" && info "Solides #0a0a0a Wallpaper erzeugt: $WALLPAPER_DST" || warn "Wallpaper-Generierung fehlgeschlagen"
+fi
+if [ -f "$WALLPAPER_DST" ]; then
 
     # labwc autostart: swaybg als Hintergrundbild-Setter (Wayland-nativ)
     LABWC_AUTOSTART="$KIOSK_HOME/.config/labwc/autostart"
@@ -233,7 +248,7 @@ if [ -f "$WALLPAPER_SRC" ]; then
     fi
     info "Wallpaper via labwc autostart konfiguriert"
 
-    # pcmanfm (läuft als X11-Desktop-Manager parallel zu swaybg) ebenfalls anpassen
+    # pcmanfm (läuft als X11-Desktop-Manager): User- und System-Konfig setzen
     PCMANFM_CFG="$KIOSK_HOME/.config/pcmanfm/LXDE-pi/desktop-items-0.conf"
     mkdir -p "$(dirname "$PCMANFM_CFG")"
     cat > "$PCMANFM_CFG" <<PCMANFM_EOF
@@ -243,7 +258,10 @@ wallpaper_common=1
 wallpaper=$WALLPAPER_DST
 PCMANFM_EOF
     chown "$KIOSK_USER:$KIOSK_USER" "$PCMANFM_CFG"
-    info "pcmanfm Wallpaper konfiguriert"
+    # System-Fallback — pcmanfm-pi liest /etc/xdg/pcmanfm/ wenn kein User-Config
+    mkdir -p /etc/xdg/pcmanfm/LXDE-pi
+    cp "$PCMANFM_CFG" /etc/xdg/pcmanfm/LXDE-pi/desktop-items-0.conf
+    info "pcmanfm Wallpaper konfiguriert (User + System)"
 else
     warn "kniger-wallpaper.png nicht gefunden — Wallpaper übersprungen"
 fi
@@ -258,12 +276,16 @@ if [ -f "$CONFIG_TXT" ]; then
         info "Pi GPU-Splash deaktiviert (disable_splash=1)"
     fi
 fi
-# quiet + splash aus cmdline entfernen falls vorhanden; Plymouth-Splash nicht nötig
 if [ -f "$CMDLINE_TXT" ]; then
     # logo.nologo: kein Kernel-Logo; vt.global_cursor_default=0: kein blinkender Cursor
     if ! grep -q "logo.nologo" "$CMDLINE_TXT"; then
         sed -i "s|$| logo.nologo vt.global_cursor_default=0|" "$CMDLINE_TXT"
         info "Kernel-Logo + Cursor auf Konsole deaktiviert"
+    fi
+    # Plymouth-Splash deaktivieren (rpd-plym-splash zeigt Pi OS Willkommens-Bildschirm)
+    if grep -q " splash " "$CMDLINE_TXT"; then
+        sed -i "s/ splash / /g" "$CMDLINE_TXT"
+        info "Plymouth-Splash deaktiviert (splash aus cmdline entfernt)"
     fi
 fi
 

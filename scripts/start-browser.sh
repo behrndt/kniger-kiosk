@@ -40,7 +40,7 @@ CHROMIUM_FLAGS=(
     --disable-session-crashed-bubble
     --no-first-run
     --password-store=basic
-    --disable-features=TranslateUI,OverscrollHistoryNavigation,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessPermissionPrompt,PrivateNetworkAccessRespectPreflightResults
+    --disable-features=TranslateUI,OverscrollHistoryNavigation,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessPermissionPrompt,PrivateNetworkAccessRespectPreflightResults,LocalNetworkAccessChecks,LocalNetworkAccessPermissionPrompt
     --disable-pinch
     --autoplay-policy=no-user-gesture-required
     --allow-running-insecure-content
@@ -83,13 +83,8 @@ done
 log "Initialer Schedule-Sync..."
 /opt/kiosk/scripts/sync-schedule.sh 2>&1 || log "Sync fehlgeschlagen — Fallback-URL"
 
-# Splash und alle verbleibenden Chromium-Prozesse am Splash-Profil beenden
-kill "$SPLASH_PID" 2>/dev/null || true
-pkill -f "user-data-dir=$SPLASH_PROFILE" 2>/dev/null || true
-wait "$SPLASH_PID" 2>/dev/null || true
-sleep 1
-
 # ── Watchdog-Loop ──────────────────────────────────────────────────────────────
+FIRST_START=true
 while true; do
     if [ -f "$SCHEDULE_ENV" ]; then
         # shellcheck source=/dev/null
@@ -105,7 +100,19 @@ while true; do
     fi
 
     log "Starte Chromium: $TARGET_URL"
-    chromium_start "$TARGET_URL"
+
+    if [ "$FIRST_START" = "true" ]; then
+        FIRST_START=false
+        # Haupt-Chromium erst starten, dann Splash killen — verhindert Desktop-Flash
+        chromium_start "$TARGET_URL" &
+        MAIN_PID=$!
+        sleep 3
+        kill "$SPLASH_PID" 2>/dev/null || true
+        pkill -f "user-data-dir=$SPLASH_PROFILE" 2>/dev/null || true
+        wait "$MAIN_PID" 2>/dev/null || true
+    else
+        chromium_start "$TARGET_URL"
+    fi
 
     EXIT_CODE=$?
     log "Chromium beendet (Exit $EXIT_CODE) — Neustart in 5s..."
