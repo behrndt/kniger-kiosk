@@ -24,6 +24,12 @@ else
     unclutter -idle 0.5 -root &
 fi
 
+# Display sicherstellen — XWayland ist unter Pi OS labwc immer auf :0
+# Ohne DISPLAY oder WAYLAND_DISPLAY crasht Chromium sofort (Exit 134 / SIGABRT)
+if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    export DISPLAY=:0
+fi
+
 # Chromium-Binary ermitteln
 CHROMIUM_BIN=$(command -v chromium || command -v chromium-browser)
 
@@ -51,7 +57,6 @@ chromium_start() {
         --autoplay-policy=no-user-gesture-required \
         --allow-running-insecure-content \
         --check-for-update-interval=31536000 \
-        --ozone-platform=auto \
         --app="$url" \
         2>/dev/null
 }
