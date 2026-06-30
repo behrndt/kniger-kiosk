@@ -59,6 +59,9 @@ fi
 NEW_HEAD=$(git rev-parse HEAD)
 log "Aktualisiert auf ${NEW_HEAD:0:8}"
 
+# Executable-Bits nach Pull sicherstellen (git speichert sie nicht zuverlässig)
+chmod +x "$KIOSK_DIR/scripts/"*.sh "$KIOSK_DIR/scanner-trigger.py" "$KIOSK_DIR/install.sh" 2>/dev/null || true
+
 # Geänderte Dateien für gezielten Service-Restart ermitteln
 CHANGED=$(git diff --name-only "${LOCAL}" "${NEW_HEAD}")
 log "Geänderte Dateien: $(echo "$CHANGED" | tr '\n' ' ')"

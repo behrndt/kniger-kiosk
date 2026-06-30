@@ -13,13 +13,17 @@ FALLBACK_URL="https://kniger.club/checkin/display"
 
 log()  { logger -t "$LOG_TAG" "$*"; echo "[kiosk-browser] $*" >&2; }
 
-# Bildschirm-Abschalten / Screensaver deaktivieren
+# Bildschirm-Abschalten / Screensaver deaktivieren (X11; no-op unter Wayland)
 xset s noblank 2>/dev/null || true
 xset s off     2>/dev/null || true
 xset -dpms     2>/dev/null || true
 
-# Cursor ausblenden (unclutter muss installiert sein)
-unclutter -idle 0.5 -root &
+# Cursor ausblenden — unclutter ist X11-only; unter Wayland (labwc) Seat-Cursor via gsettings
+if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    gsettings set org.gnome.desktop.interface cursor-size 1 2>/dev/null || true
+else
+    unclutter -idle 0.5 -root &
+fi
 
 # Erstsync — Supabase-URL holen, bevor Chromium startet
 log "Initialer Schedule-Sync..."
@@ -56,6 +60,14 @@ while true; do
 
     # Pi OS Bookworm: Binary heißt "chromium"; Bullseye: "chromium-browser"
     CHROMIUM_BIN=$(command -v chromium || command -v chromium-browser)
+
+    # Wayland (labwc) vs. X11 — Ozone-Platform automatisch wählen
+    if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+        OZONE_FLAGS="--ozone-platform=wayland --enable-features=UseOzonePlatform"
+    else
+        OZONE_FLAGS=""
+    fi
+
     "$CHROMIUM_BIN" \
         --kiosk \
         --noerrdialogs \
@@ -70,6 +82,7 @@ while true; do
         --allow-running-insecure-content \
         --disable-web-security=false \
         --check-for-update-interval=31536000 \
+        $OZONE_FLAGS \
         --app="$TARGET_URL" \
         2>/dev/null
 
