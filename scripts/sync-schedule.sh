@@ -59,13 +59,15 @@ TIMEZONE=$(echo "$RESPONSE"    | jq -r '.[0].timezone')
 # ISO-Wochentag: 1=Montag, 7=Sonntag (wie date +%u)
 TV_ON_DAYS=$(echo "$RESPONSE" | jq -r '.[0].tv_on_days | map(tostring) | join(" ")')
 
-# Token an URL hängen (?token=...) — globaler KIOSK_TOKEN aus kiosk.env
-KIOSK_TOKEN="${KIOSK_TOKEN:-}"
-if [ -n "$KIOSK_TOKEN" ]; then
-    KIOSK_URL="${CHECKIN_URL}?token=${KIOSK_TOKEN}"
+# Token: per-Screen aus DB bevorzugt, Fallback auf globalen KIOSK_TOKEN aus kiosk.env
+DB_TOKEN=$(echo "$RESPONSE" | jq -r '.[0].kiosk_token // empty')
+EFFECTIVE_TOKEN="${DB_TOKEN:-${KIOSK_TOKEN:-}}"
+
+if [ -n "$EFFECTIVE_TOKEN" ]; then
+    KIOSK_URL="${CHECKIN_URL}?token=${EFFECTIVE_TOKEN}"
 else
     KIOSK_URL="$CHECKIN_URL"
-    warn "KIOSK_TOKEN nicht gesetzt — Kiosk-URL ohne Token (wird PIN-gegated sein)"
+    warn "Kein Token (weder kiosk_screens.kiosk_token noch KIOSK_TOKEN) — URL ohne Token"
 fi
 
 # /run/kiosk/ anlegen (tmpfs, nach Reboot leer)
