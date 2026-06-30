@@ -232,6 +232,18 @@ if [ -f "$WALLPAPER_SRC" ]; then
         apt-get install -y --no-install-recommends swaybg 2>/dev/null && info "swaybg installiert" || warn "swaybg nicht installierbar — kein Wallpaper"
     fi
     info "Wallpaper via labwc autostart konfiguriert"
+
+    # pcmanfm (läuft als X11-Desktop-Manager parallel zu swaybg) ebenfalls anpassen
+    PCMANFM_CFG="$KIOSK_HOME/.config/pcmanfm/LXDE-pi/desktop-items-0.conf"
+    mkdir -p "$(dirname "$PCMANFM_CFG")"
+    cat > "$PCMANFM_CFG" <<PCMANFM_EOF
+[*]
+wallpaper_mode=crop
+wallpaper_common=1
+wallpaper=$WALLPAPER_DST
+PCMANFM_EOF
+    chown "$KIOSK_USER:$KIOSK_USER" "$PCMANFM_CFG"
+    info "pcmanfm Wallpaper konfiguriert"
 else
     warn "kniger-wallpaper.png nicht gefunden — Wallpaper übersprungen"
 fi
