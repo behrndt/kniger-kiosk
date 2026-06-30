@@ -77,9 +77,9 @@ else
     info "$KIOSK_ENV existiert bereits — wird nicht überschrieben"
 fi
 
-# ── /run/kiosk (tmpfs, bei Reboot leer — ok) ─────────────────────────────────
-mkdir -p /run/kiosk
-chown "$KIOSK_USER:$KIOSK_USER" /run/kiosk
+# ── /run/kiosk (tmpfs, bei Reboot leer) — via tmpfiles.d persistent anlegen ──
+echo "d /run/kiosk 0755 ${KIOSK_USER} ${KIOSK_USER} -" > /etc/tmpfiles.d/kiosk.conf
+systemd-tmpfiles --create /etc/tmpfiles.d/kiosk.conf
 
 # ── Kiosk-Repo nach /opt/kiosk klonen oder aktualisieren ─────────────────────
 info "Git-Repo in $KIOSK_DIR installieren…"
