@@ -248,20 +248,31 @@ if [ -f "$WALLPAPER_DST" ]; then
     fi
     info "Wallpaper via labwc autostart konfiguriert"
 
-    # pcmanfm (läuft als X11-Desktop-Manager): User- und System-Konfig setzen
-    PCMANFM_CFG="$KIOSK_HOME/.config/pcmanfm/LXDE-pi/desktop-items-0.conf"
+    # pcmanfm-pi läuft ohne --profile (→ "default"-Profil, nicht LXDE-pi)
+    # User-Config: ~/.config/pcmanfm/default/desktop-items-0.conf
+    PCMANFM_CFG="$KIOSK_HOME/.config/pcmanfm/default/desktop-items-0.conf"
     mkdir -p "$(dirname "$PCMANFM_CFG")"
     cat > "$PCMANFM_CFG" <<PCMANFM_EOF
 [*]
 wallpaper_mode=crop
 wallpaper_common=1
 wallpaper=$WALLPAPER_DST
+show_wm_menu=0
+show_documents=0
+show_trash=1
+show_mounts=0
 PCMANFM_EOF
     chown "$KIOSK_USER:$KIOSK_USER" "$PCMANFM_CFG"
-    # System-Fallback — pcmanfm-pi liest /etc/xdg/pcmanfm/ wenn kein User-Config
-    mkdir -p /etc/xdg/pcmanfm/LXDE-pi
-    cp "$PCMANFM_CFG" /etc/xdg/pcmanfm/LXDE-pi/desktop-items-0.conf
-    info "pcmanfm Wallpaper konfiguriert (User + System)"
+    # System-Config: /etc/xdg/pcmanfm/default/ — beide display-Indizes (0 + 1)
+    for idx in 0 1; do
+        TARGET="/etc/xdg/pcmanfm/default/desktop-items-${idx}.conf"
+        if [ -f "$TARGET" ]; then
+            sed -i "s|wallpaper=.*|wallpaper=$WALLPAPER_DST|g" "$TARGET"
+        else
+            cp "$PCMANFM_CFG" "$TARGET"
+        fi
+    done
+    info "pcmanfm Wallpaper konfiguriert (User default + System default)"
 else
     warn "kniger-wallpaper.png nicht gefunden — Wallpaper übersprungen"
 fi
