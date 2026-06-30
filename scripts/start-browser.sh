@@ -25,6 +25,18 @@ else
     unclutter -idle 0.5 -root &
 fi
 
+# Netzwerk abwarten (max. 30 s) bevor Supabase erreichbar sein muss
+log "Warte auf Netzwerkverbindung..."
+for i in $(seq 1 30); do
+    if curl -sf --connect-timeout 2 --max-time 3 \
+        "https://vtrewducfipnegrlomrx.supabase.co/rest/v1/" \
+        -H "apikey: placeholder" -o /dev/null 2>/dev/null; then
+        log "Netzwerk bereit (${i}s)"
+        break
+    fi
+    sleep 1
+done
+
 # Erstsync — Supabase-URL holen, bevor Chromium startet
 log "Initialer Schedule-Sync..."
 /opt/kiosk/scripts/sync-schedule.sh 2>&1 || log "Initialer Sync fehlgeschlagen — Fallback-URL wird verwendet"
