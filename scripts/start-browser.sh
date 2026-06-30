@@ -57,6 +57,7 @@ chromium_start() {
         --autoplay-policy=no-user-gesture-required \
         --allow-running-insecure-content \
         --check-for-update-interval=31536000 \
+        --disable-features=TranslateUI,OverscrollHistoryNavigation,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessPermissionPrompt,PrivateNetworkAccessRespectPreflightResults \
         --app="$url" \
         2>/dev/null
 }

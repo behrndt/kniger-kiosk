@@ -128,12 +128,15 @@ cat > /etc/chromium/policies/managed/kiosk.json <<'JSON'
 {
   "TranslateEnabled": false,
   "PrivateNetworkAccessRestrictionsEnabled": false,
+  "URLsAllowedForPrivateNetworkAccess": ["*"],
   "DefaultNotificationsSetting": 2,
   "DefaultGeolocationSetting": 2,
   "AutofillAddressEnabled": false,
   "AutofillCreditCardEnabled": false,
   "PasswordManagerEnabled": false,
-  "BrowserSignin": 0
+  "BrowserSignin": 0,
+  "DefaultInsecureContentSetting": 1,
+  "InsecureContentAllowedForUrls": ["*"]
 }
 JSON
 
@@ -211,13 +214,24 @@ fi
 # Wallpaper-PNG direkt aus dem Repo nehmen (falls vorhanden), sonst überspringen
 if [ -f "$WALLPAPER_SRC" ]; then
     cp "$WALLPAPER_SRC" "$WALLPAPER_DST"
-    # Pi OS labwc: Wallpaper-Config für den Kiosk-User setzen
-    LABWC_CFG="$KIOSK_HOME/.config/labwc"
-    mkdir -p "$LABWC_CFG"
-    echo "LABWC_WALLPAPER=$WALLPAPER_DST" > "$LABWC_CFG/background"
-    # pcmanfm-Wallpaper (falls X11-Session aktiv)
-    sudo -u "$KIOSK_USER" pcmanfm --set-wallpaper "$WALLPAPER_DST" 2>/dev/null || true
-    info "Wallpaper gesetzt: $WALLPAPER_DST"
+    info "Wallpaper kopiert: $WALLPAPER_DST"
+
+    # labwc autostart: swaybg als Hintergrundbild-Setter (Wayland-nativ)
+    LABWC_AUTOSTART="$KIOSK_HOME/.config/labwc/autostart"
+    mkdir -p "$(dirname "$LABWC_AUTOSTART")"
+    # Zeile eintragen oder aktualisieren (idempotent)
+    if grep -q "swaybg" "$LABWC_AUTOSTART" 2>/dev/null; then
+        sed -i "s|.*swaybg.*|swaybg -i $WALLPAPER_DST -m fill \&|" "$LABWC_AUTOSTART"
+    else
+        echo "swaybg -i $WALLPAPER_DST -m fill &" >> "$LABWC_AUTOSTART"
+    fi
+    chown "$KIOSK_USER:$KIOSK_USER" "$LABWC_AUTOSTART"
+
+    # swaybg installieren falls nicht vorhanden
+    if ! command -v swaybg &>/dev/null; then
+        apt-get install -y --no-install-recommends swaybg 2>/dev/null && info "swaybg installiert" || warn "swaybg nicht installierbar — kein Wallpaper"
+    fi
+    info "Wallpaper via labwc autostart konfiguriert"
 else
     warn "kniger-wallpaper.png nicht gefunden — Wallpaper übersprungen"
 fi
