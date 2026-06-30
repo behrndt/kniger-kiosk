@@ -32,7 +32,7 @@ RESPONSE=$(curl -sf \
     --max-time 20 \
     -H "apikey: ${SUPABASE_ANON_KEY}" \
     -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-    "${SUPABASE_URL}/rest/v1/kiosk_screens?screen_key=eq.${SCREEN_KEY}&select=checkin_url,tv_on_time,tv_off_time,tv_on_days,timezone,active") || {
+    "${SUPABASE_URL}/rest/v1/kiosk_screens?screen_key=eq.${SCREEN_KEY}&select=checkin_url,tv_on_time,tv_off_time,tv_on_days,timezone,active,kiosk_token") || {
     warn "Supabase-Anfrage fehlgeschlagen — behalte bisherige schedule.env"
     exit 0
 }
