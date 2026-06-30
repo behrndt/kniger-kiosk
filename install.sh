@@ -37,7 +37,7 @@ info "Kiosk-User: $KIOSK_USER (Home: $KIOSK_HOME)"
 info "Paket-Update und Installation…"
 apt-get update -qq
 apt-get install -y --no-install-recommends \
-    chromium-browser \
+    chromium \
     cec-utils \
     python3-gpiozero \
     python3-evdev \

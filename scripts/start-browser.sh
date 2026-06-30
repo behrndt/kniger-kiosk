@@ -54,7 +54,9 @@ while true; do
         echo '{"session":{"restore_on_startup":4}}' > "$PREF_DIR/Preferences"
     fi
 
-    chromium-browser \
+    # Pi OS Bookworm: Binary heißt "chromium"; Bullseye: "chromium-browser"
+    CHROMIUM_BIN=$(command -v chromium || command -v chromium-browser)
+    "$CHROMIUM_BIN" \
         --kiosk \
         --noerrdialogs \
         --disable-infobars \
