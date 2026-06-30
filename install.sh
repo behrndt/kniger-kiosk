@@ -200,6 +200,47 @@ else
     warn "LightDM-Konfiguration nicht gefunden — Autologin manuell einrichten"
 fi
 
+# ── Desktop-Wallpaper (KNIGER-Branding) ──────────────────────────────────────
+# Für die kurze Zeit zwischen Boot und Chromium-Start
+info "Desktop-Wallpaper setzen…"
+WALLPAPER_SRC="$KIOSK_DIR/kniger-wallpaper.png"
+WALLPAPER_DST=/usr/share/rpd-wallpaper/kniger-kiosk.png
+if command -v rsvg-convert &>/dev/null && [ -f "$KIOSK_DIR/loading.html" ]; then
+    : # rsvg-convert nicht direkt nutzbar für HTML — Fallback
+fi
+# Wallpaper-PNG direkt aus dem Repo nehmen (falls vorhanden), sonst überspringen
+if [ -f "$WALLPAPER_SRC" ]; then
+    cp "$WALLPAPER_SRC" "$WALLPAPER_DST"
+    # Pi OS labwc: Wallpaper-Config für den Kiosk-User setzen
+    LABWC_CFG="$KIOSK_HOME/.config/labwc"
+    mkdir -p "$LABWC_CFG"
+    echo "LABWC_WALLPAPER=$WALLPAPER_DST" > "$LABWC_CFG/background"
+    # pcmanfm-Wallpaper (falls X11-Session aktiv)
+    sudo -u "$KIOSK_USER" pcmanfm --set-wallpaper "$WALLPAPER_DST" 2>/dev/null || true
+    info "Wallpaper gesetzt: $WALLPAPER_DST"
+else
+    warn "kniger-wallpaper.png nicht gefunden — Wallpaper übersprungen"
+fi
+
+# ── Pi OS Boot-Splash anpassen ────────────────────────────────────────────────
+# GPU-Rainbow-Screen deaktivieren + stilles Booten
+CONFIG_TXT=/boot/firmware/config.txt
+CMDLINE_TXT=/boot/firmware/cmdline.txt
+if [ -f "$CONFIG_TXT" ]; then
+    if ! grep -q "^disable_splash=1" "$CONFIG_TXT"; then
+        echo "disable_splash=1" >> "$CONFIG_TXT"
+        info "Pi GPU-Splash deaktiviert (disable_splash=1)"
+    fi
+fi
+# quiet + splash aus cmdline entfernen falls vorhanden; Plymouth-Splash nicht nötig
+if [ -f "$CMDLINE_TXT" ]; then
+    # logo.nologo: kein Kernel-Logo; vt.global_cursor_default=0: kein blinkender Cursor
+    if ! grep -q "logo.nologo" "$CMDLINE_TXT"; then
+        sed -i "s|$| logo.nologo vt.global_cursor_default=0|" "$CMDLINE_TXT"
+        info "Kernel-Logo + Cursor auf Konsole deaktiviert"
+    fi
+fi
+
 # ── Abschluss ─────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"

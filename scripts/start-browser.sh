@@ -24,19 +24,19 @@ else
     unclutter -idle 0.5 -root &
 fi
 
-# Chromium-Binary und Wayland/X11-Flags einmalig ermitteln
+# Chromium-Binary ermitteln
 CHROMIUM_BIN=$(command -v chromium || command -v chromium-browser)
-if [ -n "${WAYLAND_DISPLAY:-}" ]; then
-    OZONE_FLAGS="--ozone-platform=wayland --enable-features=UseOzonePlatform"
-else
-    OZONE_FLAGS=""
-fi
 
 chromium_start() {
     local url="$1"
     PREF_DIR="${HOME}/.config/chromium/Default"
     mkdir -p "$PREF_DIR"
-    [ -f "$PREF_DIR/Preferences" ] || echo '{"session":{"restore_on_startup":4}}' > "$PREF_DIR/Preferences"
+    # Nur beim allerersten Start anlegen — NICHT bei jedem Neustart löschen,
+    # damit gespeicherte Permissions (Private Network Access) erhalten bleiben
+    if [ ! -f "$PREF_DIR/Preferences" ]; then
+        echo '{"session":{"restore_on_startup":4},"profile":{"exit_type":"Normal"}}' \
+            > "$PREF_DIR/Preferences"
+    fi
 
     "$CHROMIUM_BIN" \
         --kiosk \
@@ -46,13 +46,12 @@ chromium_start() {
         --disable-translate \
         --no-first-run \
         --password-store=basic \
-        --disable-features=TranslateUI,OverscrollHistoryNavigation \
+        --disable-features=TranslateUI,OverscrollHistoryNavigation,PrivateNetworkAccessSendPreflights \
         --disable-pinch \
         --autoplay-policy=no-user-gesture-required \
         --allow-running-insecure-content \
-        --disable-web-security=false \
         --check-for-update-interval=31536000 \
-        $OZONE_FLAGS \
+        --ozone-platform=auto \
         --app="$url" \
         2>/dev/null
 }
