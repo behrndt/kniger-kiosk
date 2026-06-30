@@ -63,6 +63,7 @@ while true; do
         --disable-session-crashed-bubble \
         --disable-translate \
         --no-first-run \
+        --password-store=basic \
         --disable-features=TranslateUI,OverscrollHistoryNavigation \
         --disable-pinch \
         --autoplay-policy=no-user-gesture-required \
