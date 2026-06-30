@@ -147,35 +147,21 @@ systemctl enable --now kiosk-sync.timer
 systemctl enable --now kiosk-update.timer
 systemctl enable --now kiosk-cec-check.timer
 
-# ── LXDE-Autostart für Chromium-Kiosk ────────────────────────────────────────
-# Ersetzt den Standard-Autostart (kein lxpanel, kein pcmanfm, kein Screensaver)
-# für einen reinen Kiosk-Betrieb.
-AUTOSTART_DIR="$KIOSK_HOME/.config/lxsession/LXDE-pi"
-AUTOSTART_FILE="$AUTOSTART_DIR/autostart"
-
-if command -v lxsession &>/dev/null || [ -d "/etc/xdg/lxsession/LXDE-pi" ]; then
-    info "LXDE-Autostart konfigurieren…"
-    mkdir -p "$AUTOSTART_DIR"
-
-    cat > "$AUTOSTART_FILE" <<'AUTOSTART'
-# KNIGER Kiosk — LXDE Autostart
-# Kein lxpanel, kein pcmanfm: reiner Kiosk-Modus
-
-# Bildschirmschoner + DPMS deaktivieren
-@xset s noblank
-@xset s off
-@xset -dpms
-
-# Kiosk-Browser mit Watchdog starten
-@/opt/kiosk/scripts/start-browser.sh
-AUTOSTART
-
-    chown -R "$KIOSK_USER:$KIOSK_USER" "$KIOSK_HOME/.config"
-    info "LXDE-Autostart geschrieben: $AUTOSTART_FILE"
-else
-    warn "LXDE nicht gefunden — Chromium-Autostart muss manuell eingerichtet werden."
-    warn "Für Pi OS Lite: 'startx' nach Login konfigurieren + ~/.xinitrc → start-browser.sh"
-fi
+# ── XDG-Autostart für Chromium-Kiosk ─────────────────────────────────────────
+# XDG-Autostart funktioniert mit allen XDG-Desktops (rpd-x, LXDE, GNOME …).
+# Pi OS Bookworm 6.x nutzt rpd-x, nicht mehr LXDE-pi — deshalb XDG statt
+# lxsession-spezifischem Autostart.
+info "XDG-Autostart konfigurieren…"
+mkdir -p /etc/xdg/autostart
+cat > /etc/xdg/autostart/kiosk-browser.desktop <<'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=KNIGER Kiosk Browser
+Exec=/opt/kiosk/scripts/start-browser.sh
+X-GNOME-Autostart-enabled=true
+NotShowIn=
+DESKTOP
+info "XDG-Autostart geschrieben: /etc/xdg/autostart/kiosk-browser.desktop"
 
 # ── Autologin aktivieren ──────────────────────────────────────────────────────
 # Pi OS Desktop: LightDM-Autologin für $KIOSK_USER aktivieren
