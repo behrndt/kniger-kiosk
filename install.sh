@@ -59,6 +59,7 @@ usermod -aG gpio,input,video "$KIOSK_USER" 2>/dev/null || warn "Gruppen-Zuweisun
 # ── /etc/kiosk einrichten ─────────────────────────────────────────────────────
 info "Kiosk-Konfigurationsverzeichnis /etc/kiosk anlegen…"
 mkdir -p /etc/kiosk
+chown root:"$KIOSK_USER" /etc/kiosk
 chmod 750 /etc/kiosk
 
 if [ ! -f "$KIOSK_ENV" ]; then
