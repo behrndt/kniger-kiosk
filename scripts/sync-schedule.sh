@@ -63,11 +63,20 @@ TV_ON_DAYS=$(echo "$RESPONSE" | jq -r '.[0].tv_on_days | map(tostring) | join(" 
 DB_TOKEN=$(echo "$RESPONSE" | jq -r '.[0].kiosk_token // empty')
 EFFECTIVE_TOKEN="${DB_TOKEN:-${KIOSK_TOKEN:-}}"
 
+URL_SEP="?"
 if [ -n "$EFFECTIVE_TOKEN" ]; then
     KIOSK_URL="${CHECKIN_URL}?token=${EFFECTIVE_TOKEN}"
+    URL_SEP="&"
 else
     KIOSK_URL="$CHECKIN_URL"
     warn "Kein Token (weder kiosk_screens.kiosk_token noch KIOSK_TOKEN) — URL ohne Token"
+fi
+
+# Vercel Preview-Schutz-Bypass (nur für Preview-Deployments nötig, nicht für Prod)
+# Eintragen in kiosk.env als VERCEL_BYPASS_SECRET=<secret aus Vercel Settings>
+VERCEL_BYPASS_SECRET="${VERCEL_BYPASS_SECRET:-}"
+if [ -n "$VERCEL_BYPASS_SECRET" ]; then
+    KIOSK_URL="${KIOSK_URL}${URL_SEP}x-vercel-protection-bypass=${VERCEL_BYPASS_SECRET}"
 fi
 
 # /run/kiosk/ anlegen (tmpfs, nach Reboot leer)
