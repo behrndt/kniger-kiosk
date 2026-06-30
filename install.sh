@@ -121,6 +121,22 @@ else
     warn "$CMDLINE nicht gefunden — UAS-Quirk bitte manuell eintragen"
 fi
 
+# ── Chromium-Policy (Kiosk-Einstellungen ohne UI-Dialoge) ────────────────────
+info "Chromium-Policy schreiben…"
+mkdir -p /etc/chromium/policies/managed
+cat > /etc/chromium/policies/managed/kiosk.json <<'JSON'
+{
+  "TranslateEnabled": false,
+  "PrivateNetworkAccessRestrictionsEnabled": false,
+  "DefaultNotificationsSetting": 2,
+  "DefaultGeolocationSetting": 2,
+  "AutofillAddressEnabled": false,
+  "AutofillCreditCardEnabled": false,
+  "PasswordManagerEnabled": false,
+  "BrowserSignin": 0
+}
+JSON
+
 # ── Systemd-Units installieren ────────────────────────────────────────────────
 info "Systemd-Units installieren…"
 cp "$KIOSK_DIR/systemd/"*.service /etc/systemd/system/
