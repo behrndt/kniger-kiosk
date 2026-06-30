@@ -277,6 +277,51 @@ else
     warn "kniger-wallpaper.png nicht gefunden — Wallpaper übersprungen"
 fi
 
+# ── Plymouth-Theme: KNIGER-Splash ─────────────────────────────────────────────
+info "KNIGER Plymouth-Theme installieren…"
+PLYMOUTH_DIR=/usr/share/plymouth/themes/kniger
+PLYMOUTH_SRC="$KIOSK_DIR/plymouth"
+
+# librsvg2-bin für SVG→PNG-Konvertierung
+if ! command -v rsvg-convert &>/dev/null; then
+    apt-get install -y --no-install-recommends librsvg2-bin 2>/dev/null \
+        && info "librsvg2-bin installiert" \
+        || warn "librsvg2-bin nicht installierbar — Plymouth-Logo wird übersprungen"
+fi
+
+mkdir -p "$PLYMOUTH_DIR"
+cp "$PLYMOUTH_SRC/kniger.plymouth" "$PLYMOUTH_DIR/"
+cp "$PLYMOUTH_SRC/kniger.script"   "$PLYMOUTH_DIR/"
+
+# Logo-SVG → PNG rendern (920×160 → skaliert auf ~500px Breite für Splash)
+if command -v rsvg-convert &>/dev/null && [ -f "$PLYMOUTH_SRC/kniger-logo.svg" ]; then
+    rsvg-convert -w 500 -h 87 \
+        --background-color="transparent" \
+        "$PLYMOUTH_SRC/kniger-logo.svg" \
+        -o "$PLYMOUTH_DIR/logo.png" \
+        && info "Logo PNG gerendert: $PLYMOUTH_DIR/logo.png" \
+        || warn "rsvg-convert fehlgeschlagen — Plymouth-Logo fehlt"
+else
+    warn "SVG→PNG-Konvertierung übersprungen — logo.png fehlt für Plymouth"
+fi
+
+# Theme als Standard setzen
+if command -v update-alternatives &>/dev/null; then
+    update-alternatives --install \
+        /usr/share/plymouth/themes/default.plymouth \
+        default.plymouth \
+        "$PLYMOUTH_DIR/kniger.plymouth" \
+        150 2>/dev/null || true
+    update-alternatives --set default.plymouth \
+        "$PLYMOUTH_DIR/kniger.plymouth" 2>/dev/null || true
+fi
+# initramfs aktualisieren damit Plymouth das neue Theme beim Boot lädt
+if command -v update-initramfs &>/dev/null; then
+    update-initramfs -u 2>/dev/null \
+        && info "initramfs aktualisiert (Plymouth-Theme aktiv)" \
+        || warn "update-initramfs fehlgeschlagen"
+fi
+
 # ── Pi OS Boot-Splash anpassen ────────────────────────────────────────────────
 # GPU-Rainbow-Screen deaktivieren + stilles Booten
 CONFIG_TXT=/boot/firmware/config.txt
@@ -293,10 +338,10 @@ if [ -f "$CMDLINE_TXT" ]; then
         sed -i "s|$| logo.nologo vt.global_cursor_default=0|" "$CMDLINE_TXT"
         info "Kernel-Logo + Cursor auf Konsole deaktiviert"
     fi
-    # Plymouth-Splash deaktivieren (rpd-plym-splash zeigt Pi OS Willkommens-Bildschirm)
-    if grep -q " splash " "$CMDLINE_TXT"; then
-        sed -i "s/ splash / /g" "$CMDLINE_TXT"
-        info "Plymouth-Splash deaktiviert (splash aus cmdline entfernt)"
+    # Plymouth-Splash aktivieren (KNIGER-Theme) — splash in cmdline sicherstellen
+    if ! grep -q " splash" "$CMDLINE_TXT"; then
+        sed -i "s|quiet|quiet splash|" "$CMDLINE_TXT"
+        info "Plymouth-Splash aktiviert (splash zu cmdline hinzugefügt)"
     fi
 fi
 

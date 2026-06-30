@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=KNIGER Kiosk
+Description=KNIGER Performance Club Boot Splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/kniger
+ScriptFile=/usr/share/plymouth/themes/kniger/kniger.script
