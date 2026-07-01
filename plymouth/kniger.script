@@ -11,8 +11,6 @@ logo_w   := logo_img.GetWidth();
 logo_h   := logo_img.GetHeight();
 
 logo := Sprite(logo_img);
-logo.SetPosition(
-    screen_width  / 2 - logo_w / 2,
-    screen_height / 2 - logo_h / 2,
-    10
-);
+logo.SetX(screen_width  / 2 - logo_w / 2);
+logo.SetY(screen_height / 2 - logo_h / 2);
+logo.SetZ(10);
