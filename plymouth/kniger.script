@@ -3,18 +3,16 @@
 screen_width  = Window.GetWidth();
 screen_height = Window.GetHeight();
 
-// Hintergrund: solides Schwarz (#0a0a0a = 10/255 ≈ 0.039)
 Window.SetBackgroundTopColor(0.039, 0.039, 0.039);
 Window.SetBackgroundBottomColor(0.039, 0.039, 0.039);
 
-// Logo zentriert
 logo_img := Image("logo.png");
 logo_w   := logo_img.GetWidth();
 logo_h   := logo_img.GetHeight();
 
 logo := Sprite(logo_img);
 logo.SetPosition(
-    Math.Int(screen_width  / 2 - logo_w / 2),
-    Math.Int(screen_height / 2 - logo_h / 2),
+    screen_width  / 2 - logo_w / 2,
+    screen_height / 2 - logo_h / 2,
     10
 );

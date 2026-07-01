@@ -215,22 +215,25 @@ else
 fi
 if [ -f "$WALLPAPER_DST" ]; then
 
-    # labwc autostart: swaybg als Hintergrundbild-Setter (Wayland-nativ)
+    # labwc autostart: User-Datei überschreibt System-/etc/xdg/labwc/autostart komplett.
+    # wf-panel-pi (Taskbar) absichtlich ausgelassen — Kiosk braucht keine Taskbar.
     LABWC_AUTOSTART="$KIOSK_HOME/.config/labwc/autostart"
     mkdir -p "$(dirname "$LABWC_AUTOSTART")"
-    # Zeile eintragen oder aktualisieren (idempotent)
-    if grep -q "swaybg" "$LABWC_AUTOSTART" 2>/dev/null; then
-        sed -i "s|.*swaybg.*|swaybg -i $WALLPAPER_DST -m fill \&|" "$LABWC_AUTOSTART"
-    else
-        echo "swaybg -i $WALLPAPER_DST -m fill &" >> "$LABWC_AUTOSTART"
-    fi
+    cat > "$LABWC_AUTOSTART" <<LABWC_EOF
+# KNIGER Kiosk — labwc autostart
+# wf-panel-pi bewusst ausgelassen (Kiosk braucht keine Taskbar)
+/usr/bin/lwrespawn /usr/bin/pcmanfm-pi &
+/usr/bin/kanshi &
+/usr/bin/lxsession-xdg-autostart &
+swaybg -i $WALLPAPER_DST -m fill &
+LABWC_EOF
     chown "$KIOSK_USER:$KIOSK_USER" "$LABWC_AUTOSTART"
 
     # swaybg installieren falls nicht vorhanden
     if ! command -v swaybg &>/dev/null; then
         apt-get install -y --no-install-recommends swaybg 2>/dev/null && info "swaybg installiert" || warn "swaybg nicht installierbar — kein Wallpaper"
     fi
-    info "Wallpaper via labwc autostart konfiguriert"
+    info "labwc autostart konfiguriert (Taskbar deaktiviert, swaybg + pcmanfm)"
 
     # pcmanfm-pi läuft ohne --profile (→ "default"-Profil, nicht LXDE-pi)
     # User-Config: ~/.config/pcmanfm/default/desktop-items-0.conf
