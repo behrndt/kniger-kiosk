@@ -45,7 +45,7 @@ PULSE_INTERVAL = float(os.environ.get("PULSE_INTERVAL", 3.0))
 ARM_TIMEOUT    = float(os.environ.get("ARM_TIMEOUT", 60.0))
 COOLDOWN       = float(os.environ.get("COOLDOWN", 1.5))
 HTTP_PORT      = int(os.environ.get("SCANNER_HTTP_PORT", 8770))
-SCANNER_HINT   = os.environ.get("SCANNER_HINT", "Netum")
+SCANNER_HINT   = os.environ.get("SCANNER_HINT", "BF SCAN")
 ALWAYS_ARM     = os.environ.get("ALWAYS_ARM", "1") not in ("0", "false", "False")
 
 # ── Logging ──────────────────────────────────────────────────────────────────
