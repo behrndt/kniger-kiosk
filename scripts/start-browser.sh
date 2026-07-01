@@ -71,6 +71,10 @@ CHROMIUM_FLAGS=(
     --autoplay-policy=no-user-gesture-required
     --allow-running-insecure-content
     --check-for-update-interval=31536000
+    # Overlay-FS: Cache in tmpfs mit hartem Limit (50 MB) — verhindert, dass der
+    # Browser-Cache über lange Laufzeit den RAM-Overlay füllt.
+    --disk-cache-dir=/tmp/kiosk-chromium-cache
+    --disk-cache-size=52428800
 )
 
 chromium_start() {

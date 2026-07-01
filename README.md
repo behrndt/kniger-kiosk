@@ -211,22 +211,60 @@ echo "standby 0" | sudo cec-client -s -d 1   # TV auf Standby
 
 ---
 
+## FS-Hardening — Overlay-FS (Read-Only Root)
+
+Der Kiosk wird im Betrieb regelmäßig **hart ausgeschaltet** (Stecker ziehen,
+Not-Aus). Um FS-Korruption zu vermeiden, läuft Root im **Overlay-FS-Modus**:
+Die Root-Partition ist read-only gemountet, alle Schreibvorgänge landen in
+einem RAM-Overlay (tmpfs) und werden beim Reboot verworfen.
+
+**Effekt:** Bei Stromverlust wird das Root-FS nie beschrieben → keine Korruption.
+Jeder Boot startet aus einem sauberen, definierten Zustand.
+
+Begleitende Härtung (via `install.sh`):
+- **journald → RAM** (`Storage=volatile`, 32 MB) — Logs füllen den Overlay nicht.
+- **Chromium-Cache → tmpfs mit 50-MB-Limit** — kein RAM-Wachstum über Laufzeit.
+- **fsck-on-boot** (`tune2fs -c 1`) — falls doch im rw-Zustand hart ausgeschaltet.
+- `/boot/firmware` read-only (FAT-Partition, dient als persistenter Marker-Speicher).
+
+### Overlay aktivieren / deaktivieren
+
+```bash
+# Aktivieren (nach Erstinstallation + Test)
+sudo /opt/kiosk/scripts/overlay-ctl.sh enable && sudo reboot
+
+# Status
+/opt/kiosk/scripts/overlay-ctl.sh status      # → on | off
+
+# Deaktivieren (für Wartung, persistente Änderungen)
+sudo /opt/kiosk/scripts/overlay-ctl.sh disable && sudo reboot
+```
+
 ## Remote-Update-Mechanismus
 
-Skripte zentral ändern → Pi zieht automatisch nach:
+Bei **aktivem Overlay** ist Root read-only — ein `git pull` würde beim nächsten
+Reboot verpuffen. Der Update-Flow ist deshalb zweistufig und läuft über einen
+Reboot-Zyklus im **nächtlichen Wartungsfenster** (der Bildschirm ist per
+TV-Schedule ohnehin aus):
 
 1. Änderung ins Repo committen und nach `main` pushen
-2. `kiosk-update.timer` (stündlich) ruft `kiosk-update.sh` auf
-3. Das Skript:
-   - Prüft `git diff HEAD origin/main`
-   - Wenn Änderungen: `git pull --ff-only`
-   - Startet betroffene Services neu (gezielt nach geänderten Dateien)
-   - Bei fehlgeschlagenem Pull: kein Service-Crash, einfach beim nächsten Stündchen nochmal
+2. `kiosk-update.timer` (nachts, 03:30 ± 20 min) ruft `kiosk-update.sh` auf
+3. `kiosk-update.sh` erkennt das Update und — bei aktivem Overlay:
+   - schreibt einen Marker auf `/boot/firmware/kiosk-update.pending`
+   - deaktiviert das Overlay und **rebootet**
+4. Nach dem Reboot (Root jetzt rw) läuft `kiosk-update-apply.service`:
+   - `git pull --ff-only` + Assets/Units übernehmen
+   - **reaktiviert das Overlay und rebootet** (Fail-safe: passiert IMMER, auch
+     bei fehlgeschlagenem Pull → FS landet nie dauerhaft im rw-Zustand)
 
-Manuell triggern:
+Bei **inaktivem Overlay** (Dev/Test) wendet `kiosk-update.sh` das Update direkt
+an (git pull + gezielte Service-Restarts, kein Reboot) — wie zuvor.
+
+Manuell sofort updaten (statt aufs Wartungsfenster zu warten):
 ```bash
-sudo systemctl start kiosk-update.service
+sudo /opt/kiosk/scripts/kiosk-update.sh   # löst bei Overlay den Reboot-Zyklus aus
 journalctl -u kiosk-update -f
+journalctl -u kiosk-update-apply -f       # nach dem ersten Reboot
 ```
 
 ---

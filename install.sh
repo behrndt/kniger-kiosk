@@ -166,6 +166,10 @@ systemctl enable --now kiosk-sync.timer
 systemctl enable --now kiosk-update.timer
 systemctl enable --now kiosk-cec-check.timer
 
+# Overlay-Update-Apply: läuft bei Boot nur wenn ein Update-Marker ansteht
+# (ConditionPathExists im Unit). enable, aber nicht --now (kein Marker beim Install).
+systemctl enable kiosk-update-apply.service 2>/dev/null || warn "kiosk-update-apply.service konnte nicht aktiviert werden"
+
 # ── XDG-Autostart für Chromium-Kiosk ─────────────────────────────────────────
 # XDG-Autostart funktioniert mit allen XDG-Desktops (rpd-x, LXDE, GNOME …).
 # Pi OS Bookworm 6.x nutzt rpd-x, nicht mehr LXDE-pi — deshalb XDG statt
@@ -326,6 +330,35 @@ if [ -f "$CMDLINE_TXT" ]; then
     fi
 fi
 
+# ── FS-Hardening: journald ins RAM (Overlay-Vorbereitung) ────────────────────
+# Bei aktivem Overlay-FS landen alle Writes im RAM. Persistente Journal-Logs
+# würden den RAM-Overlay langsam füllen. Storage=volatile hält Logs in
+# /run/log (tmpfs), begrenzt auf 32M — schreibt nie aufs Root-FS.
+info "journald auf RAM (volatile) umstellen…"
+mkdir -p /etc/systemd/journald.conf.d
+cat > /etc/systemd/journald.conf.d/kiosk.conf <<'JCONF'
+# KNIGER Kiosk — Logs im RAM halten (Overlay-FS-freundlich, kein Root-Write)
+[Journal]
+Storage=volatile
+RuntimeMaxUse=32M
+JCONF
+systemctl restart systemd-journald 2>/dev/null || warn "journald-Restart fehlgeschlagen"
+
+# ── FS-Hardening: fsck bei jedem rw-Mount erzwingen ──────────────────────────
+# Falls doch einmal im beschreibbaren Zustand hart ausgeschaltet wird
+# (z.B. während eines Update-Apply-Fensters), prüft der nächste Boot das FS.
+ROOT_DEV=$(findmnt -n -o SOURCE / 2>/dev/null)
+if [ -n "$ROOT_DEV" ] && command -v tune2fs &>/dev/null; then
+    tune2fs -c 1 "$ROOT_DEV" >/dev/null 2>&1 \
+        && info "fsck-on-boot für $ROOT_DEV aktiviert (max-mount-count=1)" \
+        || warn "tune2fs fehlgeschlagen — fsck-on-boot nicht gesetzt"
+fi
+
+# ── Overlay-FS-Hinweis (Read-Only Root gegen Korruption bei hartem Aus) ──────
+# NICHT automatisch aktivieren: erst kiosk.env ausfüllen + testen, dann manuell.
+OVERLAY_STATE=$(/opt/kiosk/scripts/overlay-ctl.sh status 2>/dev/null || echo "?")
+info "Overlay-FS-Status: $OVERLAY_STATE (Aktivierung erfolgt manuell, siehe unten)"
+
 # ── Abschluss ─────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"
@@ -343,4 +376,13 @@ echo -e "  Logs prüfen nach Reboot:"
 echo -e "    journalctl -u scanner-trigger -f"
 echo -e "    journalctl -u kiosk-sync -f"
 echo -e "    journalctl -u kiosk-update -f"
+echo ""
+echo -e "  ${YELLOW}Overlay-FS (Schutz gegen FS-Korruption bei hartem Ausschalten):${NC}"
+echo -e "    Erst testen, dann Read-Only-Root aktivieren:"
+echo -e "      ${YELLOW}sudo /opt/kiosk/scripts/overlay-ctl.sh enable && sudo reboot${NC}"
+echo -e "    Danach ist Root read-only, Updates laufen über den nächtlichen"
+echo -e "    Reboot-Zyklus (kiosk-update.timer → 03:30). Manuell sofort:"
+echo -e "      ${YELLOW}sudo /opt/kiosk/scripts/kiosk-update.sh${NC}"
+echo -e "    Overlay wieder deaktivieren (z.B. für Wartung):"
+echo -e "      ${YELLOW}sudo /opt/kiosk/scripts/overlay-ctl.sh disable && sudo reboot${NC}"
 echo ""

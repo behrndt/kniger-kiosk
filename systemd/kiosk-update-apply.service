@@ -1,0 +1,19 @@
+[Unit]
+Description=KNIGER Kiosk Overlay-Update Apply (Boot, einmalig)
+Documentation=https://github.com/behrndt/kniger-kiosk
+# Läuft nur wenn ein Update-Marker ansteht (von kiosk-update.sh gesetzt).
+ConditionPathExists=/boot/firmware/kiosk-update.pending
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/opt/kiosk/scripts/kiosk-update-apply.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kiosk-update-apply
+# Das Skript rebootet selbst nach Abschluss (Fail-safe-Trap).
+
+[Install]
+WantedBy=multi-user.target
