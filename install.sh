@@ -215,16 +215,20 @@ else
 fi
 if [ -f "$WALLPAPER_DST" ]; then
 
-    # labwc autostart: User-Datei überschreibt System-/etc/xdg/labwc/autostart komplett.
-    # wf-panel-pi (Taskbar) absichtlich ausgelassen — Kiosk braucht keine Taskbar.
+    # labwc 0.7+ führt BEIDE Autostart-Dateien aus (System + User), nicht entweder-oder.
+    # System-Autostart: wf-panel-pi entfernen (Kiosk braucht keine Taskbar).
+    # User-Autostart: nur swaybg — alles andere (pcmanfm, kanshi, lxsession) läuft aus System.
+    SYS_LABWC_AUTOSTART=/etc/xdg/labwc/autostart
+    if [ -f "$SYS_LABWC_AUTOSTART" ]; then
+        sed -i "/wf-panel-pi/d" "$SYS_LABWC_AUTOSTART"
+        info "wf-panel-pi aus System-Autostart entfernt"
+    fi
+
     LABWC_AUTOSTART="$KIOSK_HOME/.config/labwc/autostart"
     mkdir -p "$(dirname "$LABWC_AUTOSTART")"
     cat > "$LABWC_AUTOSTART" <<LABWC_EOF
-# KNIGER Kiosk — labwc autostart
-# wf-panel-pi bewusst ausgelassen (Kiosk braucht keine Taskbar)
-/usr/bin/lwrespawn /usr/bin/pcmanfm-pi &
-/usr/bin/kanshi &
-/usr/bin/lxsession-xdg-autostart &
+# KNIGER Kiosk — labwc user autostart
+# (pcmanfm-pi, kanshi, lxsession-xdg-autostart laufen bereits aus System-Autostart)
 swaybg -i $WALLPAPER_DST -m fill &
 LABWC_EOF
     chown "$KIOSK_USER:$KIOSK_USER" "$LABWC_AUTOSTART"
@@ -246,7 +250,7 @@ wallpaper_common=1
 wallpaper=$WALLPAPER_DST
 show_wm_menu=0
 show_documents=0
-show_trash=1
+show_trash=0
 show_mounts=0
 PCMANFM_EOF
     chown "$KIOSK_USER:$KIOSK_USER" "$PCMANFM_CFG"
