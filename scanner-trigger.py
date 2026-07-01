@@ -101,34 +101,49 @@ def reader_loop() -> None:
             time.sleep(2)
 
 
-def pulse_once() -> None:
-    trigger.on()
-    time.sleep(PULSE_MS / 1000.0)
-    trigger.off()
-
-
-def pulse_loop() -> None:
-    """Triggert den Scanner wiederholt, solange armed; stoppt bei Scan oder Timeout."""
+def trigger_loop() -> None:
+    """
+    Hält Trigger-Kontakt dauerhaft geschlossen solange bewaffnet.
+    Der NS-91 im Trigger-Mode benötigt geschlossenen Kontakt für Beam-ON.
+    Nach 3s Hardware-Timeout (kein Scan): PULSE_MS öffnen → wieder schließen.
+    """
     while not _shutdown.is_set():
-        armed.wait(timeout=1.0)
         if not armed.is_set():
+            trigger.off()
+            armed.wait(timeout=1.0)
             continue
+
         scan_seen.clear()
-        start = time.monotonic()
-        log.info("Arm: Trigger-Loop gestartet (timeout=%.0fs)", ARM_TIMEOUT)
+        arm_start = time.monotonic()
+        trigger.on()  # Kontakt schließen: Beam EIN
+        log.info("Arm: Scanner-Kontakt geschlossen (arm_timeout=%.0fs)", ARM_TIMEOUT)
+
+        scanned = False
         while armed.is_set() and not _shutdown.is_set():
-            if (time.monotonic() - start) >= ARM_TIMEOUT:
-                log.info("ARM_TIMEOUT erreicht")
+            if (time.monotonic() - arm_start) >= ARM_TIMEOUT:
+                log.info("ARM_TIMEOUT — Scanner deaktiviert")
+                trigger.off()
                 if not ALWAYS_ARM:
                     armed.clear()
                 break
-            pulse_once()
-            if scan_seen.wait(PULSE_INTERVAL):
-                log.info("Scan im Trigger-Fenster — Cooldown %.1fs", COOLDOWN)
-                time.sleep(COOLDOWN)
+
+            if scan_seen.wait(timeout=PULSE_INTERVAL):
+                log.info("Scan erkannt — Kontakt öffnen, Cooldown %.1fs", COOLDOWN)
+                trigger.off()
+                scanned = True
                 break
+            else:
+                # 3s Hardware-Timeout: Scanner hat sich abgeschaltet
+                # Kurz öffnen (Reset), sofort wieder schließen (neues Scan-Fenster)
+                log.info("Scanner-Timeout — Reset (%.0fms öffnen)", PULSE_MS)
+                trigger.off()
+                time.sleep(PULSE_MS / 1000.0)
+                trigger.on()
+
         if ALWAYS_ARM and not _shutdown.is_set():
             time.sleep(COOLDOWN)
+            if scanned:
+                scan_seen.clear()
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -182,5 +197,5 @@ if __name__ == "__main__":
         TRIGGER_PIN, PULSE_MS, PULSE_INTERVAL, ARM_TIMEOUT, ALWAYS_ARM,
     )
     threading.Thread(target=reader_loop, daemon=True).start()
-    threading.Thread(target=pulse_loop, daemon=True).start()
+    threading.Thread(target=trigger_loop, daemon=True).start()
     http_loop()
