@@ -60,11 +60,12 @@ log "Update verfügbar: ${LOCAL:0:8} → ${REMOTE:0:8}"
 # ── Overlay-Pfad: Update kann nicht live angewendet werden ───────────────────
 if [ -x "$OVERLAY_CTL" ] && "$OVERLAY_CTL" is-on; then
     log "Overlay aktiv — plane Update über Reboot-Zyklus."
-    # Marker auf Boot-Partition (FAT, kein Overlay → persistent über Reboot)
+    # Marker auf Boot-Partition (FAT, kein Overlay → persistent über Reboot).
+    # /boot bleibt rw: raspi-config disable_overlayfs braucht die Boot-Partition
+    # beschreibbar, um cmdline/config anzupassen.
     if "$OVERLAY_CTL" boot-rw; then
         echo "$REMOTE" > "$MARKER" 2>/dev/null || warn "Marker konnte nicht geschrieben werden"
         sync
-        "$OVERLAY_CTL" boot-ro || true
     else
         warn "boot-rw fehlgeschlagen — Update abgebrochen"
         exit 0

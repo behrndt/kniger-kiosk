@@ -34,8 +34,8 @@ log "Update-Marker gefunden — beginne Apply."
 # ── Sicherheit: Overlay MUSS aus sein, sonst ist Root read-only ──────────────
 if "$OVERLAY_CTL" is-on; then
     warn "Overlay ist noch aktiv — Root wäre read-only. Apply nicht möglich."
-    warn "Entferne Marker und reaktiviere sauberen Zustand."
-    "$OVERLAY_CTL" boot-rw && rm -f "$MARKER"; "$OVERLAY_CTL" boot-ro
+    warn "Entferne Marker (Root bleibt geschützt, kein Reboot nötig)."
+    "$OVERLAY_CTL" boot-rw && rm -f "$MARKER" && sync
     exit 1
 fi
 
@@ -43,10 +43,11 @@ fi
 finish() {
     local rc=$?
     log "Apply beendet (rc=$rc) — reaktiviere Overlay + reboot."
+    # /boot rw lassen: raspi-config enable_overlayfs braucht die Boot-Partition
+    # beschreibbar. Marker entfernen, damit der Apply nicht erneut triggert.
     "$OVERLAY_CTL" boot-rw 2>/dev/null || true
     rm -f "$MARKER" 2>/dev/null || true
     sync
-    "$OVERLAY_CTL" boot-ro 2>/dev/null || true
     "$OVERLAY_CTL" enable  || warn "Overlay-Reaktivierung fehlgeschlagen!"
     sync
     systemctl reboot
