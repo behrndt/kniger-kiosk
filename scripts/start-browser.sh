@@ -103,6 +103,11 @@ while true; do
 
     if [ "$FIRST_START" = "true" ]; then
         FIRST_START=false
+        # Stale Singleton-Lock aus vorherigem Boot bereinigen
+        pkill -f "chromium.*--app=" 2>/dev/null || true
+        rm -f "${HOME}/.config/chromium/SingletonLock" \
+               "${HOME}/.config/chromium/SingletonSocket" 2>/dev/null || true
+        sleep 1
         # Haupt-Chromium erst starten, dann Splash killen — verhindert Desktop-Flash
         chromium_start "$TARGET_URL" &
         MAIN_PID=$!
@@ -111,6 +116,11 @@ while true; do
         pkill -f "user-data-dir=$SPLASH_PROFILE" 2>/dev/null || true
         wait "$MAIN_PID" 2>/dev/null || true
     else
+        # Alle laufenden Instanzen beenden — verhindert Tab-Akkumulierung via Singleton
+        pkill -f "chromium.*--app=" 2>/dev/null || true
+        sleep 2
+        rm -f "${HOME}/.config/chromium/SingletonLock" \
+               "${HOME}/.config/chromium/SingletonSocket" 2>/dev/null || true
         chromium_start "$TARGET_URL"
     fi
 
