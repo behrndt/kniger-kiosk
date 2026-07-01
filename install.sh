@@ -205,48 +205,14 @@ fi
 
 # ── Desktop-Wallpaper (KNIGER-Branding) ──────────────────────────────────────
 # Für die kurze Zeit zwischen Boot und Chromium-Start
-# Ziel: schwarzes 1920×1080 mit KNIGER-Logo zentriert (wie loading.html, ohne Spinner)
 info "Desktop-Wallpaper setzen…"
 WALLPAPER_DST=/usr/share/rpd-wallpaper/kniger-kiosk.png
-LOGO_SVG="$KIOSK_DIR/plymouth/kniger-logo.svg"
-LOGO_TMP=$(mktemp /tmp/kniger-logo.XXXXXX.png)
-
-# Wallpaper dynamisch generieren: SVG → Logo-PNG → auf schwarzem Hintergrund compositen
-if command -v rsvg-convert &>/dev/null && [ -f "$LOGO_SVG" ] \
-   && python3 -c "from PIL import Image" 2>/dev/null; then
-    rsvg-convert -w 640 --background-color="transparent" "$LOGO_SVG" -o "$LOGO_TMP" && \
-    python3 - "$LOGO_TMP" "$WALLPAPER_DST" <<'PYEOF'
-import sys
-from PIL import Image
-
-logo = Image.open(sys.argv[1]).convert('RGBA')
-bg   = Image.new('RGBA', (1920, 1080), (10, 10, 10, 255))
-x = (1920 - logo.width)  // 2
-y = (1080 - logo.height) // 2
-bg.paste(logo, (x, y), logo)
-bg.convert('RGB').save(sys.argv[2], 'PNG')
-print(f"Wallpaper: Logo {logo.width}×{logo.height}px @ ({x},{y})")
-PYEOF
-    info "Wallpaper mit KNIGER-Logo generiert: $WALLPAPER_DST" \
-    || warn "Wallpaper-Composite fehlgeschlagen"
+if [ -f "$KIOSK_DIR/kniger-wallpaper.png" ]; then
+    cp "$KIOSK_DIR/kniger-wallpaper.png" "$WALLPAPER_DST"
+    info "Wallpaper kopiert: $WALLPAPER_DST"
 else
-    # Fallback: PNG aus Repo oder solides Schwarz
-    if [ -f "$KIOSK_DIR/kniger-wallpaper.png" ]; then
-        cp "$KIOSK_DIR/kniger-wallpaper.png" "$WALLPAPER_DST"
-        info "Wallpaper aus Repo kopiert (kein Logo)"
-    else
-        python3 -c "
-import struct, zlib
-def chunk(t,d):
-    c=zlib.crc32(t+d)&0xffffffff
-    return struct.pack('>I',len(d))+t+d+struct.pack('>I',c)
-raw=b'\\x00'+bytes([10,10,10])*1920
-idat=zlib.compress(raw*1080,9)
-open('$WALLPAPER_DST','wb').write(b'\\x89PNG\\r\\n\\x1a\\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',1920,1080,8,2,0,0,0))+chunk(b'IDAT',idat)+chunk(b'IEND',b''))
-" && info "Solides Schwarz generiert" || warn "Wallpaper-Generierung fehlgeschlagen"
-    fi
+    warn "kniger-wallpaper.png fehlt im Repo — Wallpaper wird nicht gesetzt"
 fi
-rm -f "$LOGO_TMP"
 if [ -f "$WALLPAPER_DST" ]; then
 
     # labwc autostart: swaybg als Hintergrundbild-Setter (Wayland-nativ)
@@ -300,27 +266,17 @@ info "KNIGER Plymouth-Theme installieren…"
 PLYMOUTH_DIR=/usr/share/plymouth/themes/kniger
 PLYMOUTH_SRC="$KIOSK_DIR/plymouth"
 
-# librsvg2-bin für SVG→PNG-Konvertierung
-if ! command -v rsvg-convert &>/dev/null; then
-    apt-get install -y --no-install-recommends librsvg2-bin 2>/dev/null \
-        && info "librsvg2-bin installiert" \
-        || warn "librsvg2-bin nicht installierbar — Plymouth-Logo wird übersprungen"
-fi
 
 mkdir -p "$PLYMOUTH_DIR"
 cp "$PLYMOUTH_SRC/kniger.plymouth" "$PLYMOUTH_DIR/"
 cp "$PLYMOUTH_SRC/kniger.script"   "$PLYMOUTH_DIR/"
 
-# Logo-SVG → PNG rendern (920×160 → skaliert auf ~500px Breite für Splash)
-if command -v rsvg-convert &>/dev/null && [ -f "$PLYMOUTH_SRC/kniger-logo.svg" ]; then
-    rsvg-convert -w 500 -h 87 \
-        --background-color="transparent" \
-        "$PLYMOUTH_SRC/kniger-logo.svg" \
-        -o "$PLYMOUTH_DIR/logo.png" \
-        && info "Logo PNG gerendert: $PLYMOUTH_DIR/logo.png" \
-        || warn "rsvg-convert fehlgeschlagen — Plymouth-Logo fehlt"
+# Logo PNG aus Repo kopieren
+if [ -f "$PLYMOUTH_SRC/logo.png" ]; then
+    cp "$PLYMOUTH_SRC/logo.png" "$PLYMOUTH_DIR/logo.png"
+    info "Plymouth-Logo kopiert: $PLYMOUTH_DIR/logo.png"
 else
-    warn "SVG→PNG-Konvertierung übersprungen — logo.png fehlt für Plymouth"
+    warn "plymouth/logo.png fehlt im Repo — Plymouth-Splash ohne Logo"
 fi
 
 # Theme als Standard setzen
