@@ -1,24 +1,20 @@
 // KNIGER Kiosk — Plymouth Boot Splash
-// Schwarzer Hintergrund (#0a0a0a) + zentriertes KNIGER-Logo
 
 screen_width  = Window.GetWidth();
 screen_height = Window.GetHeight();
 
 // Hintergrund: solides Schwarz (#0a0a0a = 10/255 ≈ 0.039)
-bg := Rectangle.New();
-bg.SetColor(0.039, 0.039, 0.039, 1.0);
-bg.SetWidth(screen_width);
-bg.SetHeight(screen_height);
-bg.SetX(0);
-bg.SetY(0);
-bg.SetZ(-100);
+Window.SetBackgroundTopColor(0.039, 0.039, 0.039);
+Window.SetBackgroundBottomColor(0.039, 0.039, 0.039);
 
-// Logo
+// Logo zentriert
 logo_img := Image("logo.png");
-logo_w    := logo_img.GetWidth();
-logo_h    := logo_img.GetHeight();
+logo_w   := logo_img.GetWidth();
+logo_h   := logo_img.GetHeight();
 
 logo := Sprite(logo_img);
-logo.SetX(screen_width  / 2 - logo_w / 2);
-logo.SetY(screen_height / 2 - logo_h / 2);
-logo.SetZ(10);
+logo.SetPosition(
+    Math.Int(screen_width  / 2 - logo_w / 2),
+    Math.Int(screen_height / 2 - logo_h / 2),
+    10
+);
