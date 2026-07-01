@@ -110,10 +110,15 @@ Der Installer ist **idempotent** — mehrfaches Ausführen ist sicher.
 5. Systemd-Units installieren und aktivieren:
    - `scanner-trigger.service` (startet sofort)
    - `kiosk-sync.timer` (alle 5 Minuten)
-   - `kiosk-update.timer` (stündlich)
    - `kiosk-cec-check.timer` (jede Minute)
-6. LXDE-Autostart für Chromium-Kiosk konfigurieren
+   - `kiosk-update-apply.service` (Boot-Oneshot, läuft nur bei anstehendem Update)
+   - `kiosk-update.service` bleibt manuell startbar (kein Auto-Timer)
+6. Labwc-Autostart für Chromium-Kiosk konfigurieren (Taskbar deaktiviert, swaybg-Wallpaper)
 7. LightDM-Autologin aktivieren
+8. FS-Hardening vorbereiten: journald → RAM (`Storage=volatile`), `kiosk-update`-Wrapper
+   in `/usr/local/bin`. **Overlay-FS selbst aktivierst du bewusst am Ende** (siehe
+   Abschnitt „FS-Hardening") — nicht automatisch, damit `kiosk.env` erst gefüllt/getestet
+   werden kann.
 
 ---
 
@@ -145,7 +150,7 @@ sudo reboot
 
 Der Pi startet nun vollständig unbeaufsichtigt:
 1. LightDM loggt `pi` automatisch ein
-2. LXDE startet `start-browser.sh`
+2. Die labwc-Session (via XDG-Autostart) startet `start-browser.sh`
 3. `start-browser.sh` ruft `sync-schedule.sh` auf (URL aus Supabase holen)
 4. Chromium öffnet `<checkin_url>?token=<KIOSK_TOKEN>` im Kiosk-Modus
 5. `scanner-trigger` wartet auf GPIO-Trigger-Anfragen vom Browser
@@ -157,15 +162,18 @@ Der Pi startet nun vollständig unbeaufsichtigt:
 
 ```
 /etc/kiosk/kiosk.env          # Secrets (SCREEN_KEY, SUPABASE_ANON_KEY, KIOSK_TOKEN)
-/opt/kiosk/                   # Git-Repo (Remote-Updates via kiosk-update.timer)
+/opt/kiosk/                   # Git-Repo (Updates bewusst via `sudo kiosk-update`)
   ├── scripts/
   │   ├── start-browser.sh    # Watchdog-Loop für Chromium
   │   ├── sync-schedule.sh    # Supabase → /run/kiosk/schedule.env
   │   ├── cec-tv-check.sh     # HDMI-CEC TV ein/aus
-  │   └── kiosk-update.sh     # git pull + Service-Restart
+  │   ├── overlay-ctl.sh      # Overlay-FS steuern (status/enable/disable)
+  │   ├── kiosk-update.sh     # Update-Trigger (overlay-aware)
+  │   └── kiosk-update-apply.sh # Boot-Apply im rw-Fenster (pull + Overlay-Reaktivierung)
   ├── scanner-trigger.py      # GPIO-Daemon + HTTP /arm /disarm
   └── systemd/                # Service- und Timer-Definitionen
 
+/boot/firmware/kiosk-update.log     # Persistentes Update-Log (überlebt Reboot)
 /run/kiosk/schedule.env       # Laufzeit-Config (von sync-schedule.sh; nach Reboot leer)
 /run/kiosk/tv-state           # Laufzeit-TV-State ("on" / "off")
 ```
@@ -280,9 +288,13 @@ an (git pull + gezielte Service-Restarts, kein Reboot).
 ```bash
 journalctl -u scanner-trigger -f     # Scanner-Daemon
 journalctl -u kiosk-sync -f          # Schedule-Sync
-journalctl -u kiosk-update -f        # Remote-Update
+journalctl -u kiosk-update -f        # Update-Trigger (manuell ausgelöst)
+journalctl -u kiosk-update-apply -f  # Update-Apply beim Boot
 journalctl -u kiosk-cec-check -f     # TV-Steuerung
 ```
+
+> journald läuft im RAM (`Storage=volatile`) — Logs sind **nach einem Reboot weg**.
+> Für reboot-übergreifende Update-Diagnose: `cat /boot/firmware/kiosk-update.log`.
 
 ### Chromium startet nicht / zeigt alten Stand
 
@@ -304,7 +316,7 @@ pkill -f chromium-browser
 python3 -c "from evdev import list_devices, InputDevice; [print(d, InputDevice(d).name) for d in list_devices()]"
 
 # SCANNER_HINT in kiosk.env anpassen, falls der Geräte-Name abweicht
-# Standardwert: "Netum"
+# Standardwert: "BF SCAN" (evdev-Name des Netum NS-91: "BF SCAN SCAN KEYBOARD")
 ```
 
 ### TV reagiert nicht auf CEC
@@ -317,12 +329,31 @@ echo "on 0" | sudo cec-client -s -d 3
 sudo rm /run/kiosk/tv-state
 ```
 
-### Update-Mechanismus manuell testen
+### Update auslösen / Fortschritt verfolgen
 
 ```bash
-sudo systemctl start kiosk-update.service
-journalctl -u kiosk-update --since "1 minute ago"
+# Update bewusst auslösen (bei aktivem Overlay: 2 Reboots, mehrere Minuten)
+sudo kiosk-update
+
+# Fortschritt — persistentes Log überlebt die Reboots:
+cat /boot/firmware/kiosk-update.log
 ```
+
+### Änderung am Pi verschwindet nach Reboot
+
+Erwartetes Verhalten bei **aktivem Overlay-FS**: Root ist read-only, alle Writes
+landen im RAM und werden beim Reboot verworfen. Für **persistente** manuelle
+Änderungen das Overlay kurz deaktivieren:
+
+```bash
+sudo /opt/kiosk/scripts/overlay-ctl.sh status      # on | off
+sudo /opt/kiosk/scripts/overlay-ctl.sh disable && sudo reboot
+# … Änderungen machen …
+sudo /opt/kiosk/scripts/overlay-ctl.sh enable && sudo reboot
+```
+
+> Hinweis: Nach einem Reboot braucht das WLAN ~1–3 min bis Reassoziation+DHCP;
+> der Pi ist so lange evtl. nicht per SSH erreichbar, läuft aber (Kiosk sichtbar).
 
 ---
 
