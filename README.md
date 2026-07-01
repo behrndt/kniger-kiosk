@@ -1,6 +1,6 @@
 # KNIGER Kiosk — Raspberry Pi Self-Checkin
 
-Unbeaufsichtigter Kiosk für den KNIGER-Gym-Eingang. Der Pi startet automatisch, zeigt die Check-in-Seite im Vollbild-Chromium, steuert den TV via HDMI-CEC und lädt den Barcode-Scanner per GPIO-Optokoppler.
+Unbeaufsichtigter Kiosk für den KNIGER-Gym-Eingang. Der Pi startet automatisch, zeigt die Check-in-Seite im Vollbild-Chromium, steuert den TV via HDMI-CEC und lädt den Barcode-Scanner per GPIO-Optokoppler. Das Root-Dateisystem ist per Overlay-FS gegen Korruption bei hartem Ausschalten gehärtet.
 
 ---
 
