@@ -40,7 +40,7 @@ from evdev import InputDevice, ecodes, list_devices
 
 # ── Konfiguration (überschreibbar per Env-Var) ───────────────────────────────
 TRIGGER_PIN    = int(os.environ.get("TRIGGER_PIN", 17))
-PULSE_MS       = int(os.environ.get("PULSE_MS", 120))
+PULSE_MS       = int(os.environ.get("PULSE_MS", 400))
 PULSE_INTERVAL = float(os.environ.get("PULSE_INTERVAL", 3.0))
 ARM_TIMEOUT    = float(os.environ.get("ARM_TIMEOUT", 60.0))
 COOLDOWN       = float(os.environ.get("COOLDOWN", 1.5))
