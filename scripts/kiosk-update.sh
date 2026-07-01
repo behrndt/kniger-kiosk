@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Remote-Update-Check — overlay-aware.
-# Läuft im Wartungsfenster (kiosk-update.timer, nachts) als root.
+# Remote-Update-Trigger — overlay-aware, BEWUSST ausgelöst (kein Auto-Timer).
+#
+# Aufruf: sudo /opt/kiosk/scripts/kiosk-update.sh   (oder: sudo kiosk-update)
 #
 # Zwei Betriebsmodi je nach FS-Zustand:
 #
@@ -41,9 +42,9 @@ cd "$KIOSK_DIR"
 
 log "Update-Check: Branch '$KIOSK_BRANCH'…"
 
-# Fetch (bei aktivem Overlay landet dies im RAM-Overlay — unkritisch)
-if ! git fetch --quiet origin "$KIOSK_BRANCH" 2>&1 | logger -t "$LOG_TAG"; then
-    warn "git fetch fehlgeschlagen — Update abgebrochen"
+# Fetch mit Timeout (bei aktivem Overlay landet dies im RAM-Overlay — unkritisch)
+if ! timeout 60 git fetch --quiet origin "$KIOSK_BRANCH" 2>&1 | logger -t "$LOG_TAG"; then
+    warn "git fetch fehlgeschlagen/timeout — Update abgebrochen"
     exit 0
 fi
 

@@ -240,32 +240,36 @@ sudo /opt/kiosk/scripts/overlay-ctl.sh enable && sudo reboot
 sudo /opt/kiosk/scripts/overlay-ctl.sh disable && sudo reboot
 ```
 
-## Remote-Update-Mechanismus
+## Remote-Update-Mechanismus (manuell/überwacht)
 
 Bei **aktivem Overlay** ist Root read-only — ein `git pull` würde beim nächsten
-Reboot verpuffen. Der Update-Flow ist deshalb zweistufig und läuft über einen
-Reboot-Zyklus im **nächtlichen Wartungsfenster** (der Bildschirm ist per
-TV-Schedule ohnehin aus):
+Reboot verpuffen. Updates laufen deshalb über einen zweistufigen Reboot-Zyklus,
+der **bewusst ausgelöst** wird (kein unbeaufsichtigter Auto-Timer — das
+widerspräche dem Robustheits-Gedanken des Overlays; Kiosk-Code ändert sich selten):
 
 1. Änderung ins Repo committen und nach `main` pushen
-2. `kiosk-update.timer` (nachts, 03:30 ± 20 min) ruft `kiosk-update.sh` auf
+2. Update bewusst auslösen:
+   ```bash
+   ssh pi@<kiosk-ip> sudo kiosk-update
+   ```
 3. `kiosk-update.sh` erkennt das Update und — bei aktivem Overlay:
    - schreibt einen Marker auf `/boot/firmware/kiosk-update.pending`
    - deaktiviert das Overlay und **rebootet**
 4. Nach dem Reboot (Root jetzt rw) läuft `kiosk-update-apply.service`:
-   - `git pull --ff-only` + Assets/Units übernehmen
+   - wartet auf stabiles Netz (DNS-Check), dann `git pull --ff-only` mit
+     Timeout + Retry (3 Versuche)
+   - übernimmt geänderte Assets/Units
    - **reaktiviert das Overlay und rebootet** (Fail-safe: passiert IMMER, auch
      bei fehlgeschlagenem Pull → FS landet nie dauerhaft im rw-Zustand)
 
-Bei **inaktivem Overlay** (Dev/Test) wendet `kiosk-update.sh` das Update direkt
-an (git pull + gezielte Service-Restarts, kein Reboot) — wie zuvor.
-
-Manuell sofort updaten (statt aufs Wartungsfenster zu warten):
+Der komplette Zyklus dauert ~2–4 min (zwei Reboots). Fortschritt lässt sich
+persistent nachvollziehen (überlebt Reboot trotz volatile journald):
 ```bash
-sudo /opt/kiosk/scripts/kiosk-update.sh   # löst bei Overlay den Reboot-Zyklus aus
-journalctl -u kiosk-update -f
-journalctl -u kiosk-update-apply -f       # nach dem ersten Reboot
+cat /boot/firmware/kiosk-update.log        # persistentes Apply-Log
 ```
+
+Bei **inaktivem Overlay** (Dev/Test) wendet `kiosk-update.sh` das Update direkt
+an (git pull + gezielte Service-Restarts, kein Reboot).
 
 ---
 

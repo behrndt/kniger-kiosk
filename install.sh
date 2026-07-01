@@ -161,14 +161,22 @@ info "Services aktivieren…"
 # Scanner-Trigger direkt starten (kein Netz nötig)
 systemctl enable --now scanner-trigger.service
 
-# Schedule-Sync + Update + CEC als Timer
+# Schedule-Sync + CEC als Timer
 systemctl enable --now kiosk-sync.timer
-systemctl enable --now kiosk-update.timer
 systemctl enable --now kiosk-cec-check.timer
+
+# Update: KEIN Auto-Timer (Overlay-Kiosk → keine unbeaufsichtigten Reboot-
+# Updates). Bewusst per `sudo kiosk-update` ausgelöst.
+# kiosk-update.service bleibt als manuell startbarer oneshot (kein enable nötig).
+systemctl disable kiosk-update.timer 2>/dev/null || true
 
 # Overlay-Update-Apply: läuft bei Boot nur wenn ein Update-Marker ansteht
 # (ConditionPathExists im Unit). enable, aber nicht --now (kein Marker beim Install).
 systemctl enable kiosk-update-apply.service 2>/dev/null || warn "kiosk-update-apply.service konnte nicht aktiviert werden"
+
+# Bequemer Wrapper: `sudo kiosk-update` löst den Update-Zyklus aus
+ln -sf "$KIOSK_DIR/scripts/kiosk-update.sh" /usr/local/bin/kiosk-update
+info "kiosk-update-Kommando verlinkt (/usr/local/bin/kiosk-update)"
 
 # ── XDG-Autostart für Chromium-Kiosk ─────────────────────────────────────────
 # XDG-Autostart funktioniert mit allen XDG-Desktops (rpd-x, LXDE, GNOME …).
@@ -344,15 +352,9 @@ RuntimeMaxUse=32M
 JCONF
 systemctl restart systemd-journald 2>/dev/null || warn "journald-Restart fehlgeschlagen"
 
-# ── FS-Hardening: fsck bei jedem rw-Mount erzwingen ──────────────────────────
-# Falls doch einmal im beschreibbaren Zustand hart ausgeschaltet wird
-# (z.B. während eines Update-Apply-Fensters), prüft der nächste Boot das FS.
-ROOT_DEV=$(findmnt -n -o SOURCE / 2>/dev/null)
-if [ -n "$ROOT_DEV" ] && command -v tune2fs &>/dev/null; then
-    tune2fs -c 1 "$ROOT_DEV" >/dev/null 2>&1 \
-        && info "fsck-on-boot für $ROOT_DEV aktiviert (max-mount-count=1)" \
-        || warn "tune2fs fehlgeschlagen — fsck-on-boot nicht gesetzt"
-fi
+# ── FS-Check: raspi-config setzt fsck.repair=yes in cmdline beim Overlay-Setup ─
+# Damit läuft fsck bei rw-Mounts automatisch + nicht-interaktiv (kein Hang).
+# Ein zusätzliches tune2fs -c 1 ist überflüssig und wurde bewusst entfernt.
 
 # ── Overlay-FS-Hinweis (Read-Only Root gegen Korruption bei hartem Aus) ──────
 # NICHT automatisch aktivieren: erst kiosk.env ausfüllen + testen, dann manuell.
