@@ -10,22 +10,48 @@ LOADING_PAGE="file:///opt/kiosk/loading.html"
 SPLASH_PROFILE=/tmp/kiosk-splash-profile
 FALLBACK_URL="https://kniger.club/checkin/display"
 LOG_TAG=kiosk-browser
+LOCKFILE=/run/kiosk/start-browser.lock
 
 log()  { logger -t "$LOG_TAG" "$*"; echo "[kiosk-browser] $*" >&2; }
 
-# Bildschirm-Abschalten / Screensaver deaktivieren (X11; no-op unter Wayland)
+# ── Singleton-Guard: nur eine Instanz pro Session ──────────────────────────────
+mkdir -p /run/kiosk 2>/dev/null || true
+if [ -f "$LOCKFILE" ]; then
+    OLD_PID=$(cat "$LOCKFILE" 2>/dev/null || echo "")
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+        log "Bereits laufend (PID $OLD_PID) — beende Duplikat $$"
+        exit 0
+    fi
+fi
+echo "$$" > "$LOCKFILE"
+trap "rm -f $LOCKFILE" EXIT INT TERM
+
+# ── Hilfsfunktion: auf eigentlichen Browser-Prozess warten ────────────────────
+# Chromium kann intern forken; der initiale Prozess exitet dann sofort.
+# tail --pid wartet auf den tatsächlichen Browser-Prozess unabhängig von der PID-Herkunft.
+wait_for_browser() {
+    local init_pid="$1"
+    wait "$init_pid" 2>/dev/null || true
+    # Falls init_pid sofort exitiert hat (Fork-Architektur), noch auf echten Browser warten
+    local browser_pid
+    browser_pid=$(pgrep -f "chromium.*--app=" 2>/dev/null | head -1 || true)
+    if [ -n "$browser_pid" ]; then
+        log "Browser läuft als Prozess $browser_pid — warte via tail --pid"
+        tail --pid="$browser_pid" -f /dev/null 2>/dev/null || true
+    fi
+}
+
+# ── Bildschirm / Cursor ────────────────────────────────────────────────────────
 xset s noblank 2>/dev/null || true
 xset s off     2>/dev/null || true
 xset -dpms     2>/dev/null || true
 
-# Cursor ausblenden
 if [ -n "${WAYLAND_DISPLAY:-}" ]; then
     gsettings set org.gnome.desktop.interface cursor-size 1 2>/dev/null || true
 else
     unclutter -idle 0.5 -root &
 fi
 
-# Display sicherstellen — XWayland läuft unter Pi OS labwc auf :0
 if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
     export DISPLAY=:0
 fi
@@ -103,25 +129,27 @@ while true; do
 
     if [ "$FIRST_START" = "true" ]; then
         FIRST_START=false
-        # Stale Singleton-Lock aus vorherigem Boot bereinigen
+        # Stale Chromium + Singleton-Lock aus vorherigem Boot bereinigen
         pkill -f "chromium.*--app=" 2>/dev/null || true
+        sleep 1
         rm -f "${HOME}/.config/chromium/SingletonLock" \
                "${HOME}/.config/chromium/SingletonSocket" 2>/dev/null || true
-        sleep 1
-        # Haupt-Chromium erst starten, dann Splash killen — verhindert Desktop-Flash
+        # Haupt-Chromium starten, nach 3 s Splash killen (verhindert Desktop-Flash)
         chromium_start "$TARGET_URL" &
         MAIN_PID=$!
         sleep 3
         kill "$SPLASH_PID" 2>/dev/null || true
         pkill -f "user-data-dir=$SPLASH_PROFILE" 2>/dev/null || true
-        wait "$MAIN_PID" 2>/dev/null || true
+        wait_for_browser "$MAIN_PID"
     else
         # Alle laufenden Instanzen beenden — verhindert Tab-Akkumulierung via Singleton
         pkill -f "chromium.*--app=" 2>/dev/null || true
         sleep 2
         rm -f "${HOME}/.config/chromium/SingletonLock" \
                "${HOME}/.config/chromium/SingletonSocket" 2>/dev/null || true
-        chromium_start "$TARGET_URL"
+        chromium_start "$TARGET_URL" &
+        MAIN_PID=$!
+        wait_for_browser "$MAIN_PID"
     fi
 
     EXIT_CODE=$?
